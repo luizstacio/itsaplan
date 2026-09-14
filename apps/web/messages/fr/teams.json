@@ -307,7 +307,7 @@
     "scopesLabel": "Permissions requises pour le token",
     "credential": "Identifiants",
     "chooseCredential": "Choisir des identifiants",
-    "noCredential": "Aucun identifiant {integration} pour l'instant. Ajoutez-en un dans les intégrations de l'équipe.",
+    "noCredential": "Aucun identifiant {integration} pour l'instant.",
     "deleteMessage": "Retirer {tool} ? Les agents qui l'utilisent perdront l'accès à cet outil.",
     "scopesUpper": "Scopes",
     "selectGroup": "Tout sélectionner",

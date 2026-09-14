@@ -56,6 +56,7 @@ export function ToolConfigDialog({
         <ToolCredentialStep
           teamId={teamId}
           tools={tools}
+          meta={catalog.find((i) => i.key === tools[0].integrationKey)}
           onBack={() => setTools([])}
           onDone={onClose}
         />

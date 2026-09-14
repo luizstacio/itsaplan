@@ -307,7 +307,7 @@
     "scopesLabel": "صلاحيات الرمز المطلوبة",
     "credential": "بيانات الاعتماد",
     "chooseCredential": "اختيار بيانات اعتماد",
-    "noCredential": "مفيش بيانات اعتماد {integration} لسه. ضيف واحدة في تكاملات الفريق الأول.",
+    "noCredential": "مفيش بيانات اعتماد {integration} لسه.",
     "deleteMessage": "تشيل {tool}؟ الوكلاء اللي بيستخدموها هيبطّلوا يوصلوا للأداة دي.",
     "scopesUpper": "النطاقات",
     "selectGroup": "تحديد الكل",
