@@ -4,6 +4,11 @@ Custom tools for AI agents: external services (Jina, Firecrawl, Telegram) an age
 can call at runtime. Each service is an _integration_ that owns a credential and
 exposes one or more _tools_.
 
+The `mcp` integration is the one whose tools are not fixed in code: a credential
+names a remote MCP server (Streamable HTTP endpoint and an optional bearer token), and
+the agent discovers that server's tools at run time with `mcp_list_tools` and runs
+them with `mcp_call_tool`. A team can store one credential per server it connects.
+
 ## Model
 
 - **Integration**: an external service. Holds a `credentialSchema` (the fields a
