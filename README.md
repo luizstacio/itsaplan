@@ -101,7 +101,7 @@ release.
 - Or control the run queue through the API and do the work in your own implementation
 - A run starts on an @mention in a comment, on an assignment, or on a schedule
 - Tools for the services outside the tracker: Notion, Telegram, Threads, Instagram, Jina,
-  Firecrawl, and Gitea
+  Firecrawl, and Gitea, plus any MCP server over Streamable HTTP
 - Built-in chat with each agent, with its own conversation history
 - Chat with an external agent too. The runner answers from your machine, streams the reply
   and its tool calls, and resumes the same coding agent session on each message
