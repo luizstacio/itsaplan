@@ -307,7 +307,7 @@
     "scopesLabel": "Потрібні дозволи токена",
     "credential": "Облікові дані",
     "chooseCredential": "Виберіть облікові дані",
-    "noCredential": "Облікових даних {integration} ще немає. Спершу додайте їх в інтеграціях команди.",
+    "noCredential": "Облікових даних {integration} ще немає.",
     "deleteMessage": "Прибрати {tool}? Агенти, що ним користуються, втратять до нього доступ.",
     "scopesUpper": "Скоупи",
     "selectGroup": "Вибрати всі",

@@ -307,7 +307,7 @@
     "scopesLabel": "Required token permissions",
     "credential": "Credential",
     "chooseCredential": "Choose a credential",
-    "noCredential": "No {integration} credential yet. Add one in the team's integrations first.",
+    "noCredential": "No {integration} credential yet.",
     "deleteMessage": "Remove {tool}? Agents using it will lose access to this tool.",
     "scopesUpper": "Scopes",
     "selectGroup": "Select all",

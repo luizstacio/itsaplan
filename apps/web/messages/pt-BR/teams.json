@@ -307,7 +307,7 @@
     "scopesLabel": "Permissões de token exigidas",
     "credential": "Credencial",
     "chooseCredential": "Escolher uma credencial",
-    "noCredential": "Nenhuma credencial de {integration} ainda. Adicione uma nas integrações do time primeiro.",
+    "noCredential": "Nenhuma credencial de {integration} ainda.",
     "deleteMessage": "Remover {tool}? Agentes que a usam perderão acesso a esta ferramenta.",
     "scopesUpper": "Escopos",
     "selectGroup": "Selecionar tudo",

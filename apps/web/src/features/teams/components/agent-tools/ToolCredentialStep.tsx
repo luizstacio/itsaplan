@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ChevronLeft } from 'lucide-react';
-import type { IntegrationOption } from '@/lib/api/endpoints/integrations';
+import type { IntegrationMeta, IntegrationOption } from '@/lib/api/endpoints/integrations';
+import { CredentialForm } from '../integrations/CredentialForm';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import {
@@ -29,19 +30,23 @@ const credLabel = (c: IntegrationOption) => c.label ?? `Credential #${c.id}`;
 // integration, and if none exists yet, the user is pointed at the Integrations page.
 // Tools already configured on the chosen credential are skipped, because the API answers
 // 409 for a duplicate and that would abort the rest of the batch. `onBack` returns to the
-// tool picker.
+// tool picker. With no credential of the integration yet, the step offers the credential
+// form of `meta` in place; the saved credential then becomes the picked one.
 export function ToolCredentialStep({
   teamId,
   tools,
+  meta,
   onBack,
   onDone,
 }: {
   teamId: number;
   tools: ToolOption[];
+  meta: IntegrationMeta | undefined;
   onBack: () => void;
   onDone: () => void;
 }) {
   const t = useTranslations('teams.tools');
+  const tIntegrations = useTranslations('teams.integrations');
   const tCommon = useTranslations('common');
   const { integrationKey, integrationLabel } = tools[0];
   const credentials = useIntegrationOptionsQuery(teamId, 'tool').data ?? [];
@@ -51,6 +56,7 @@ export function ToolCredentialStep({
   const [picked, setPicked] = useState<number | null>(null);
   const credentialId = picked ?? matching[0]?.id ?? null;
   const [busy, setBusy] = useState(false);
+  const [adding, setAdding] = useState(false);
 
   const configured = useConfiguredToolOptionsQuery(teamId).data ?? [];
   const pending = tools.filter(
@@ -122,42 +128,63 @@ export function ToolCredentialStep({
         </div>
       )}
 
-      <div className="space-y-1.5">
-        <Label>{t('credential')}</Label>
-        {matching.length === 0 ? (
-          <p className="text-xs text-muted-foreground">
-            {t('noCredential', { integration: integrationLabel })}
-          </p>
-        ) : (
-          <Select
-            value={credentialId != null ? String(credentialId) : ''}
-            onValueChange={(v) => setPicked(Number(v))}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder={t('chooseCredential')} />
-            </SelectTrigger>
-            <SelectContent>
-              {matching.map((c) => (
-                <SelectItem key={c.id} value={String(c.id)}>
-                  {credLabel(c)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
-        {skipped > 0 && (
-          <p className="text-xs text-muted-foreground">{t('alreadyAdded', { count: skipped })}</p>
-        )}
-      </div>
+      {adding && meta ? (
+        <CredentialForm
+          teamId={teamId}
+          meta={meta}
+          existing={null}
+          onBack={() => setAdding(false)}
+          onDone={() => setAdding(false)}
+        />
+      ) : (
+        <>
+          <div className="space-y-1.5">
+            <Label>{t('credential')}</Label>
+            {matching.length === 0 ? (
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground">
+                  {t('noCredential', { integration: integrationLabel })}
+                </p>
+                {meta && (
+                  <Button variant="outline" size="sm" onClick={() => setAdding(true)}>
+                    {tIntegrations('add')}
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <Select
+                value={credentialId != null ? String(credentialId) : ''}
+                onValueChange={(v) => setPicked(Number(v))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={t('chooseCredential')} />
+                </SelectTrigger>
+                <SelectContent>
+                  {matching.map((c) => (
+                    <SelectItem key={c.id} value={String(c.id)}>
+                      {credLabel(c)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            {skipped > 0 && (
+              <p className="text-xs text-muted-foreground">
+                {t('alreadyAdded', { count: skipped })}
+              </p>
+            )}
+          </div>
 
-      <div className="flex justify-end gap-2">
-        <Button variant="outline" onClick={onDone} disabled={busy}>
-          {tCommon('cancel')}
-        </Button>
-        <Button onClick={submit} disabled={!canSubmit}>
-          {t('add')}
-        </Button>
-      </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={onDone} disabled={busy}>
+              {tCommon('cancel')}
+            </Button>
+            <Button onClick={submit} disabled={!canSubmit}>
+              {t('add')}
+            </Button>
+          </div>
+        </>
+      )}
     </div>
   );
 }

@@ -307,7 +307,7 @@
     "scopesLabel": "Izin token yang diperlukan",
     "credential": "Kredensial",
     "chooseCredential": "Pilih kredensial",
-    "noCredential": "Belum ada kredensial {integration}. Tambahkan satu di integrasi tim terlebih dahulu.",
+    "noCredential": "Belum ada kredensial {integration}.",
     "deleteMessage": "Hapus {tool}? Agen yang menggunakannya akan kehilangan akses ke alat ini.",
     "scopesUpper": "Cakupan",
     "selectGroup": "Pilih semua",
