@@ -35,7 +35,7 @@
     "customFields": "Пользовательские поля",
     "views": "Представления",
     "dashboards": "Дашборды",
-    "documents": "Docs",
+    "documents": "Документы",
     "actions": "Действия",
     "configuration": "Конфигурация",
     "webhooks": "Вебхуки",
@@ -46,5 +46,6 @@
   "copyTitle": "Копировать проект «{name}»",
   "create": "Создать проект",
   "copyAction": "Копировать проект",
+  "defaultAgents": "В этот проект добавятся агенты: {names}",
   "copyName": "{name} — копия"
 }

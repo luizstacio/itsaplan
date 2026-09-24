@@ -6,6 +6,7 @@ export const qk = {
   teams: ['teams'] as const,
   // One team: its counters and what the caller may do with what it holds.
   team: (teamId: number) => ['team', teamId] as const,
+  teamProjectDefaults: (teamId: number) => ['team', teamId, 'project-defaults'] as const,
   // The members of a team and the projects it owns, each read by its own section. A
   // page is scoped by the search term and the window it was read with.
   teamMembers: (teamId: number, params: unknown) => ['team', teamId, 'members', params] as const,
@@ -55,6 +56,11 @@ export const qk = {
   actions: (projectKey: string) => ['actions', projectKey] as const,
   webhooks: (projectKey: string) => ['webhooks', projectKey] as const,
   webhookDeliveries: (webhookId: number) => ['webhookDeliveries', webhookId] as const,
+  // The project's Plane import jobs (the Import/Export settings section).
+  importJobs: (projectKey: string) => ['importJobs', projectKey] as const,
+  // The mapping review preview for one candidate Plane project, before a job exists.
+  planePreview: (projectKey: string, planeProjectId: string) =>
+    ['planePreview', projectKey, planeProjectId] as const,
   // Saved dashboards (the analytics tabs) and the read-only metrics behind their
   // widgets. `kind` names the metric (stats/pulse/throughput/breakdown/...) and
   // `params` scopes it to the widget's query (window, filters).
@@ -66,6 +72,8 @@ export const qk = {
     ['documents', projectKey, 'document', documentId] as const,
   documentRevisions: (projectKey: string, documentId: number) =>
     ['documents', projectKey, 'document', documentId, 'revisions'] as const,
+  documentComments: (projectKey: string, documentId: number) =>
+    ['documents', projectKey, 'document', documentId, 'comments'] as const,
   documentAssets: (projectKey: string, documentId: number) =>
     ['documents', projectKey, 'document', documentId, 'assets'] as const,
   documentIssueLinks: (projectKey: string, documentId: number) =>

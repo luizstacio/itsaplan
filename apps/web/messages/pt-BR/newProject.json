@@ -35,7 +35,7 @@
     "customFields": "Campos personalizados",
     "views": "Visões",
     "dashboards": "Dashboards",
-    "documents": "Docs",
+    "documents": "Documentos",
     "actions": "Ações",
     "configuration": "Configuração",
     "webhooks": "Webhooks",
@@ -46,5 +46,6 @@
   "copyTitle": "Copiar projeto \"{name}\"",
   "create": "Criar projeto",
   "copyAction": "Copiar projeto",
+  "defaultAgents": "Agentes que entrarão neste projeto: {names}",
   "copyName": "{name} cópia"
 }

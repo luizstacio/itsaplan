@@ -20,6 +20,7 @@ import {
   TeamDetailResponse,
   TeamListResponse,
   TeamMcpResponse,
+  TeamProjectDefaultsResponse,
   TeamMemberPageResponse,
   TeamProjectDetailResponse,
   TeamProjectMemberPageResponse,
@@ -35,6 +36,7 @@ import {
   memberListQuery,
   updateTeamBody,
   updateTeamMcpBody,
+  updateTeamProjectDefaultsBody,
 } from './model';
 import {
   createTeam,
@@ -49,6 +51,8 @@ import {
   removeTeamMember,
   renameTeam,
   setTeamMcp,
+  getTeamProjectDefaults,
+  setTeamProjectDefaults,
   setTeamMemberRole,
   teamOwnsProject,
 } from './service';
@@ -240,6 +244,29 @@ export const teamRoutes = new Elysia({ name: 'teams', detail: { tags: ['Teams'] 
     },
   })
 
+  .get(
+    '/teams/:teamId/project-defaults',
+    ({ membership }) => getTeamProjectDefaults(membership.teamId),
+    {
+      teamMember: true,
+      params: teamParams,
+      response: { 200: TeamProjectDefaultsResponse, ...errors(401, 403, 404) },
+      detail: { summary: "Get a team's defaults for new projects" },
+    },
+  )
+
+  .patch(
+    '/teams/:teamId/project-defaults',
+    ({ body, membership }) => setTeamProjectDefaults(membership.teamId, body.defaultAgentIds),
+    {
+      teamManager: true,
+      params: teamParams,
+      body: updateTeamProjectDefaultsBody,
+      response: { 200: TeamProjectDefaultsResponse, ...errors(400, 401, 403, 404) },
+      detail: { summary: "Set the team's default agents for new projects" },
+    },
+  )
+
   .post(
     '/teams',
     async ({ body, user, set }) => {
@@ -406,7 +433,7 @@ export const teamRoutes = new Elysia({ name: 'teams', detail: { tags: ['Teams'] 
   .post(
     '/teams/:teamId/leave',
     async ({ membership }) => {
-      await leaveTeam(membership.teamId, membership.userId, membership.role);
+      await leaveTeam(membership.teamId, membership.userId);
       return noContent();
     },
     {

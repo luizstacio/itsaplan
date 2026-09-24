@@ -39,6 +39,97 @@ describe('teams', () => {
   });
   afterEach(clearLimits);
 
+  describe('project defaults', () => {
+    it('attaches selected team agents only to new projects', async () => {
+      const owner = await signUpClient();
+      const teamId = (await owner.api.teams.get()).data![0].id;
+      await owner.api.projects.post({ key: 'SRC', name: 'Source' });
+      const created = await createAgent(owner.api, 'SRC', {
+        name: 'Triage',
+        username: 'triage',
+        kind: 'external',
+      });
+      const agent = created.data!.agent;
+
+      const saved = await owner.api.teams({ teamId })['project-defaults'].patch({
+        defaultAgentIds: [agent.id],
+      });
+      expect(saved.status).toBe(200);
+      await owner.api.teams({ teamId }).projects.post({ key: 'NEW', name: 'New' });
+      const members = await owner.api.projects({ projectKey: 'NEW' }).members.get();
+      expect(members.data?.items.some((member) => member.userId === agent.userId)).toBe(true);
+
+      await owner.api.teams({ teamId })['project-defaults'].patch({ defaultAgentIds: [] });
+      await owner.api.teams({ teamId }).projects.post({ key: 'NEXT', name: 'Next' });
+      const nextMembers = await owner.api.projects({ projectKey: 'NEXT' }).members.get();
+      expect(nextMembers.data?.items.some((member) => member.userId === agent.userId)).toBe(false);
+      const existingMembers = await owner.api.projects({ projectKey: 'NEW' }).members.get();
+      expect(existingMembers.data?.items.some((member) => member.userId === agent.userId)).toBe(
+        true,
+      );
+    });
+
+    it('keeps the source agents when copying a project', async () => {
+      const owner = await signUpClient();
+      const teamId = (await owner.api.teams.get()).data![0].id;
+      await owner.api.projects.post({ key: 'SRC', name: 'Source' });
+      await owner.api.projects.post({ key: 'OTHER', name: 'Other' });
+      const sourceAgent = await createAgent(owner.api, 'SRC', {
+        name: 'Source agent',
+        username: 'source-agent',
+        kind: 'external',
+      });
+      const defaultAgent = await createAgent(owner.api, 'OTHER', {
+        name: 'Default agent',
+        username: 'default-agent',
+        kind: 'external',
+      });
+      await owner.api.teams({ teamId })['project-defaults'].patch({
+        defaultAgentIds: [defaultAgent.data!.agent.id],
+      });
+
+      const copy = await owner.api.projects({ projectKey: 'SRC' }).copy.post({
+        key: 'DST',
+        name: 'Destination',
+        include: { agents: true },
+      });
+      expect(copy.status).toBe(201);
+      const members = await owner.api.projects({ projectKey: 'DST' }).members.get();
+      const memberIds = members.data?.items.map((member) => member.userId);
+      expect(memberIds).toContain(sourceAgent.data!.agent.userId);
+      expect(memberIds).not.toContain(defaultAgent.data!.agent.userId);
+    });
+
+    it('rejects agents from another team and member edits', async () => {
+      const owner = await signUpClient();
+      const teamId = (await owner.api.teams.get()).data![0].id;
+      const member = await addTeamMember(owner, teamId);
+      const other = await signUpClient();
+      const otherTeamId = (await other.api.teams.get()).data![0].id;
+      await other.api.teams({ teamId: otherTeamId }).projects.post({ key: 'OTH', name: 'Other' });
+      const agent = await createAgent(other.api, 'OTH', {
+        name: 'Other',
+        username: 'other',
+        kind: 'external',
+      });
+
+      expect(
+        (
+          await owner.api.teams({ teamId })['project-defaults'].patch({
+            defaultAgentIds: [agent.data!.agent.id],
+          })
+        ).status,
+      ).toBe(400);
+      expect(
+        (
+          await member.api.teams({ teamId })['project-defaults'].patch({
+            defaultAgentIds: [],
+          })
+        ).status,
+      ).toBe(403);
+    });
+  });
+
   describe('list', () => {
     it('lists the team the account was registered with', async () => {
       const { user, api } = await signUpClient();
@@ -940,6 +1031,58 @@ describe('teams', () => {
       expect(removed.status).toBe(409);
       expect(removed.error?.value).toMatchObject({ error: expect.stringContaining('OPS') });
       expect((await member.api.projects({ projectKey: 'OPS' }).get()).status).toBe(200);
+    });
+  });
+
+  describe('concurrent ownership changes', () => {
+    async function twoOwners() {
+      const owner = await signUpClient();
+      const teamId = (await owner.api.teams.get()).data![0].id;
+      const second = await addTeamMember(owner, teamId);
+      await owner.api
+        .teams({ teamId })
+        .members({ userId: second.user.userId })
+        .patch({ role: 'owner' });
+      return { owner, second, teamId };
+    }
+
+    it('keeps an owner when both owners leave concurrently', async () => {
+      const { owner, second, teamId } = await twoOwners();
+      const results = await Promise.all([
+        owner.api.teams({ teamId }).leave.post(),
+        second.api.teams({ teamId }).leave.post(),
+      ]);
+      expect(results.map((result) => result.status).sort()).toEqual([204, 409]);
+      const teams = await Promise.all([owner.api.teams.get(), second.api.teams.get()]);
+      expect(
+        teams.flatMap((result) => result.data ?? []).filter((row) => row.id === teamId),
+      ).toHaveLength(1);
+    });
+
+    it('keeps an owner when owners demote each other concurrently', async () => {
+      const { owner, second, teamId } = await twoOwners();
+      const results = await Promise.all([
+        owner.api
+          .teams({ teamId })
+          .members({ userId: second.user.userId })
+          .patch({ role: 'member' }),
+        second.api
+          .teams({ teamId })
+          .members({ userId: owner.user.userId })
+          .patch({ role: 'member' }),
+      ]);
+      expect(results.map((result) => result.status).sort()).toEqual([204, 403]);
+      expect((await owner.api.teams({ teamId }).get()).data?.ownerCount).toBe(1);
+    });
+
+    it('keeps an owner when owners remove each other concurrently', async () => {
+      const { owner, second, teamId } = await twoOwners();
+      const results = await Promise.all([
+        owner.api.teams({ teamId }).members({ userId: second.user.userId }).delete(),
+        second.api.teams({ teamId }).members({ userId: owner.user.userId }).delete(),
+      ]);
+      expect(results.filter((result) => result.status === 204)).toHaveLength(1);
+      expect(results.some((result) => result.status === 403 || result.status === 404)).toBe(true);
     });
   });
 
