@@ -48,6 +48,9 @@ type ModelConfig = {
 // integration key is the provider id; its decrypted config carries the apiKey and an
 // optional base URL. The model id is stored on the agent. OpenCode Go rejects a request
 // without an x-opencode-session header, which has to stay the same across one conversation.
+// A custom OpenAI-compatible gateway (9router, for one) answers a request that carries no
+// `stream` flag and `Accept: */*` with the JSON body followed by `data: [DONE]`, which
+// fails to parse; asking for JSON gets a clean body, and streamed calls are unaffected.
 async function resolveModel(row: AiAgentRow, sessionId: string): Promise<ModelConfig> {
   if (row.modelCredentialId == null) {
     throw new HttpError(400, 'Agent has no model credential set');
@@ -66,6 +69,7 @@ async function resolveModel(row: AiAgentRow, sessionId: string): Promise<ModelCo
     apiKey: String(secret.config.apiKey ?? ''),
     ...(baseUrl ? { url: baseUrl } : {}),
     ...(provider === 'opencode-go' ? { headers: { 'x-opencode-session': sessionId } } : {}),
+    ...(provider === 'openai-compatible' ? { headers: { accept: 'application/json' } } : {}),
   };
 }
 
