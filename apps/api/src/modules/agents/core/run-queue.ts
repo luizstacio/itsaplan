@@ -13,7 +13,7 @@ export const agentRunConfig = {
   pollIntervalMs: () => intEnv('AGENT_RUN_POLL_INTERVAL_MS', 2000),
   batchSize: () => intEnv('AGENT_RUN_BATCH_SIZE', 5),
   maxAttempts: () => intEnv('AGENT_RUN_MAX_ATTEMPTS', 3),
-  leaseSeconds: () => intEnv('AGENT_RUN_LEASE_SECONDS', 300),
+  leaseSeconds: () => intEnv('AGENT_RUN_LEASE_SECONDS', 900),
 };
 
 // Runs of this workspace's agents that hold a slot and were queued before this one. A claim

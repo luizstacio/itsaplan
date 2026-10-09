@@ -15,7 +15,7 @@ import { recordContextUsage, type ContextUsage } from '../../chat-usage';
 import { isChatThreadId, newChatThreadId } from './thread-ids';
 import { errorMessage } from '../helpers/errors';
 import { projectPreamble } from '../prompt/framing';
-import { HttpError } from '#shared/lib';
+import { HttpError, intEnv } from '#shared/lib';
 
 // Runtime execution of internal agents via Mastra. An agent is built on demand
 // from its stored configuration (provider/model/instructions) and run against a
@@ -33,6 +33,11 @@ const DEFAULT_MODEL = 'gpt-5-mini';
 const DEFAULT_INSTRUCTIONS = "You are a helpful assistant that manages this project's work items.";
 // Upper bound on the agent's tool-use loop when the agent has no maxSteps set.
 const DEFAULT_MAX_STEPS = 12;
+// Mastra retries a model call 0 times unless told otherwise, so one 502 or dropped
+// connection from the provider failed the whole run. It retries only network errors
+// and retryable statuses (408, 429, 5xx), waiting 1s and doubling: 8 retries wait
+// about 4 minutes in total. The run's wall-time cap still bounds them.
+const modelMaxRetries = () => intEnv('AGENT_MODEL_MAX_RETRIES', 8);
 
 // Mastra's model config: an object carrying the provider id, model id, and the
 // explicit apiKey (and url for OpenAI-compatible endpoints).
@@ -106,6 +111,7 @@ async function buildAgent(
     name: row.name,
     instructions,
     model,
+    maxRetries: modelMaxRetries(),
     // The agent acts as its own bot user, in the project of this run. Route tools call
     // the real API with its key, so its role applies; get_current_date is the one
     // tool with no route; read_skill loads any enabled skills on demand; custom tools
