@@ -74,6 +74,6 @@ async function processRun(run: ClaimedRun): Promise<void> {
 // either way. Without it a run that never returns holds its slot until the claim lease
 // expires and is then started again, having recorded nothing.
 function runTimeoutMs(maxRunSeconds: number): number {
-  const cap = intEnv('AGENT_RUN_TIMEOUT_MS', 240_000);
+  const cap = intEnv('AGENT_RUN_TIMEOUT_MS', 600_000);
   return maxRunSeconds > 0 ? Math.min(maxRunSeconds * 1000, cap) : cap;
 }
