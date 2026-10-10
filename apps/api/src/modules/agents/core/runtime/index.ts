@@ -1,6 +1,11 @@
 import { randomUUID } from 'node:crypto';
-import { Agent } from '@mastra/core/agent';
-import { getAgentInProject, getInternalAgentApiKey, type AiAgentRow } from '../service';
+import { Agent, type AgentExecutionOptions } from '@mastra/core/agent';
+import {
+  getAgentInProject,
+  getInternalAgentApiKey,
+  type AiAgentRow,
+  type ReasoningEffort,
+} from '../service';
 import { getProjectById } from '#modules/projects/service';
 import { getCredentialSecret } from '../../integrations/service';
 import { listAgentSkills } from '../../skills/service';
@@ -78,6 +83,25 @@ async function resolveModel(row: AiAgentRow, sessionId: string): Promise<ModelCo
   };
 }
 
+// The reasoning effort as provider options. Each provider SDK reads only its own key, so
+// one object covers whichever provider the model resolves to. `openaiCompatible` is read
+// by every provider Mastra addresses as an OpenAI-compatible endpoint — most of the
+// registry, and any credential with a base URL — and is sent as `reasoning_effort`.
+// Mastra's provider-neutral `modelSettings.reasoning` is not used: it only reaches
+// AI SDK v7 models, and the providers Mastra bundles are v6.
+function reasoningProviderOptions(effort: ReasoningEffort): ProviderOptions {
+  return {
+    openaiCompatible: { reasoningEffort: effort },
+    openai: { reasoningEffort: effort },
+    anthropic: { effort },
+    google: { thinkingConfig: { thinkingLevel: effort } },
+    xai: { reasoningEffort: effort },
+    groq: { reasoningEffort: effort },
+    deepseek: { reasoningEffort: effort },
+    openrouter: { reasoning: { effort } },
+  };
+}
+
 // One event of a streamed agent run, sent to the caller as it happens. `text` is
 // a chunk of the answer to append; `tool-start`/`tool-end` report a capability the
 // agent is using (so the UI can show what it is doing); `done` closes the stream
@@ -138,19 +162,32 @@ async function buildAgent(
 // thread: threadId identifies the conversation (a new one is created when omitted)
 // and the caller (callerUserId) owns it. The thread id used is returned so the
 // caller can continue the conversation; it is null when memory is off.
+//
+// `aborted` is true when opts.abortSignal fired: Mastra then resolves with the partial
+// text instead of rejecting, so only this tells it from a normal finish.
 export async function runAgent(
   agentId: number,
   projectId: number,
   prompt: string,
   opts: RunOpts,
-): Promise<{ text: string; threadId: string | null; usage: ContextUsage | null }> {
+): Promise<{
+  text: string;
+  threadId: string | null;
+  usage: ContextUsage | null;
+  aborted: boolean;
+}> {
   const { agent, row, options, threadId } = await prepareRun(agentId, projectId, prompt, opts);
   const result = await agent.generate(prompt, { ...options, abortSignal: opts.abortSignal });
   const usage = contextOf(result.usage);
   // A chat thread keeps one number, replaced by each answer. An autonomous run keeps
   // the counts of that run instead, on its own row, so its caller stores them.
   if (threadId && isChatThreadId(threadId)) await recordContextUsage(threadId, row.id, usage);
-  return { text: (result.text ?? '').trim(), threadId, usage };
+  return {
+    text: (result.text ?? '').trim(),
+    threadId,
+    usage,
+    aborted: opts.abortSignal?.aborted ?? false,
+  };
 }
 
 // What the model reported about the last call of an answer, as the pair the chat keeps.
@@ -257,6 +294,9 @@ async function prepareRun(
   // `temperature` option is only read by the legacy generate.
   const options: RunOptions = { maxSteps: row.maxSteps ?? DEFAULT_MAX_STEPS };
   if (row.temperature != null) options.modelSettings = { temperature: row.temperature };
+  if (row.reasoningEffort != null) {
+    options.providerOptions = reasoningProviderOptions(row.reasoningEffort);
+  }
   if (threadId) {
     // The thread is created up front with what it is bound to and a title, so the chat
     // history can list it and deleting the agent, project or issue can find it. The
@@ -297,6 +337,9 @@ export type RunOpts = {
 type RunOptions = {
   maxSteps: number;
   modelSettings?: { temperature: number };
+  providerOptions?: ProviderOptions;
   memory?: { thread: string; resource: string };
   abortSignal?: AbortSignal;
 };
+
+type ProviderOptions = NonNullable<AgentExecutionOptions['providerOptions']>;
