@@ -25,6 +25,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { StateIcon } from '@/features/issue/components/shared/IssueIcons';
 import { IssueIdentifier } from '../shared/IssueIdentifier';
+import { IssueCardPullRequests } from './IssueCardPullRequests';
 import { IssueCardLinks } from './IssueCardLinks';
 import { IssueCardSubtasks } from './IssueCardSubtasks';
 
@@ -220,6 +221,7 @@ export function IssueCardBody({
 
       <IssueCardSubtasks issueId={issue.id} maps={maps} onOpen={onOpen} />
       <IssueCardLinks links={issue.links} maps={maps} onOpen={onOpen} />
+      <IssueCardPullRequests links={issue.development} />
     </>
   );
 }

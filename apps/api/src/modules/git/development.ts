@@ -82,10 +82,28 @@ function aggregateChecks(checks: DevelopmentCheck[]): PipelineStatus | null {
 }
 
 export async function listIssueDevelopmentLinks(issueId: number): Promise<DevelopmentLink[]> {
+  return listDevelopmentLinks([issueId]);
+}
+
+export async function attachBoardDevelopment<T extends { id: number }>(issues: T[]) {
+  const links = await listDevelopmentLinks(issues.map((issue) => issue.id));
+  const byIssue = new Map<number, DevelopmentLink[]>();
+  for (const link of links) {
+    const group = byIssue.get(link.issueId) ?? [];
+    group.push(link);
+    byIssue.set(link.issueId, group);
+  }
+  return issues.map((issue) => ({ ...issue, development: byIssue.get(issue.id) ?? [] }));
+}
+
+async function listDevelopmentLinks(
+  issueIds: number[],
+): Promise<(DevelopmentLink & { issueId: number })[]> {
+  if (issueIds.length === 0) return [];
   const links = await db
     .select()
     .from(issueDevelopmentLink)
-    .where(eq(issueDevelopmentLink.issueId, issueId))
+    .where(inArray(issueDevelopmentLink.issueId, issueIds))
     .orderBy(desc(issueDevelopmentLink.updatedAt), desc(issueDevelopmentLink.id));
   const rows = links.length
     ? await db
@@ -99,9 +117,15 @@ export async function listIssueDevelopmentLinks(issueId: number): Promise<Develo
         )
         .orderBy(issueDevelopmentCheck.name, desc(issueDevelopmentCheck.updatedAt))
     : [];
+  const checksByLink = new Map<number, typeof rows>();
+  for (const row of rows) {
+    const group = checksByLink.get(row.developmentLinkId) ?? [];
+    group.push(row);
+    checksByLink.set(row.developmentLinkId, group);
+  }
   return links.map((link) => {
-    const checks = rows
-      .filter((row) => row.developmentLinkId === link.id && row.headSha === link.headSha)
+    const checks = (checksByLink.get(link.id) ?? [])
+      .filter((row) => row.headSha === link.headSha)
       .map((row) => ({
         id: row.id,
         name: row.name,

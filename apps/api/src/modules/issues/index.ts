@@ -69,6 +69,7 @@ import {
 import { listIssueCycles } from './cycle-history';
 import { moveIssue } from './move';
 import {
+  attachBoardDevelopment,
   createAndLinkPullRequest,
   linkExistingPullRequest,
   listLinkablePullRequests,
@@ -478,7 +479,7 @@ export const issueRoutes = new Elysia({ name: 'issues', detail: { tags: ['Issues
     '/projects/:projectKey/issues/board',
     async ({ project }) => ({
       issues: await attachSubtaskCounts(
-        await attachBoardLinks(await listIssues(project), project.id),
+        await attachBoardDevelopment(await attachBoardLinks(await listIssues(project), project.id)),
         project.id,
       ),
     }),
