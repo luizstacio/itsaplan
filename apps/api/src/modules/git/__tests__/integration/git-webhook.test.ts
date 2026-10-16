@@ -447,6 +447,67 @@ describe('Repository webhook', () => {
     expect((await issueState(asOwner, issue.id)).columnId).toBe(started.id);
   });
 
+  it('includes each issue’s PR links and current status in the board', async () => {
+    const { asOwner, webhookId, secret, columns } = await setupProject();
+    const linked = (await createIssue(asOwner, columns[0].id)).data!;
+    const unrelated = (await createIssue(asOwner, columns[0].id)).data!;
+    const body = `Refs MKT-${linked.sequenceNumber}`;
+
+    for (const merged of [false, true]) {
+      await deliver(
+        webhookId,
+        secret,
+        prPayload({ action: merged ? 'closed' : 'opened', merged, body }),
+      );
+      const board = await asOwner.projects({ projectKey: 'MKT' }).issues.board.get();
+      expect(board.status).toBe(200);
+      expect(board.data!.issues.find((issue) => issue.id === linked.id)?.development).toMatchObject(
+        [
+          {
+            number: 42,
+            url: 'https://github.com/acme/site/pull/42',
+            state: merged ? 'merged' : 'open',
+            draft: false,
+          },
+        ],
+      );
+      expect(board.data!.issues.find((issue) => issue.id === unrelated.id)?.development).toEqual(
+        [],
+      );
+    }
+  });
+
+  it('refreshes the board when PR links and checks change', async () => {
+    const { asOwner, webhookId, secret, columns } = await setupProject();
+    const issue = (await createIssue(asOwner, columns[0].id)).data!;
+    const scopes = `board:${issue.projectId}`;
+    const revision = async () =>
+      (await asOwner.sync.rev.get({ query: { scopes } })).data!.revs[scopes];
+    const before = await revision();
+    await deliver(
+      webhookId,
+      secret,
+      prPayload({
+        action: 'opened',
+        merged: false,
+        body: `Refs MKT-${issue.sequenceNumber}`,
+      }),
+    );
+    const linked = await revision();
+    expect(linked).not.toBe(before);
+    await deliver(
+      webhookId,
+      secret,
+      checkPayload({ id: 1, name: 'Tests', conclusion: 'success' }),
+      {
+        event: 'check_run',
+      },
+    );
+    expect(await revision()).not.toBe(linked);
+    const board = await asOwner.projects({ projectKey: 'MKT' }).issues.board.get();
+    expect(board.data!.issues[0].development?.[0].checkStatus).toBe('success');
+  });
+
   it('ignores a draft PR and picks it up once it is marked ready', async () => {
     const { asOwner, webhookId, secret, columns } = await setupProject();
     const started = columns.find((c) => c.stateType === 'started')!;

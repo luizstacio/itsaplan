@@ -145,6 +145,7 @@ export interface CycleRef {
 // issues. The board payload and the public share bundle have them; a write response
 // returns a plain Issue.
 export interface BoardIssue extends Issue {
+  development?: DevelopmentLink[];
   links: IssueLinkRef[];
   // How many subtasks the issue has, archived ones included. The board carries
   // only active issues, so an archived subtask shows up nowhere else — and a

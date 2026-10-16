@@ -304,6 +304,7 @@ export const BoardIssueResponse = t.Composite([
   IssueResponse,
   t.Object({
     links: t.Array(BoardIssueLinkResponse),
+    development: t.Optional(t.Array(DevelopmentLinkResponse)),
     // How many subtasks the issue has, archived ones included — the board lists
     // only active issues, so it cannot count them from the payload itself.
     subtaskCount: t.Number(),
