@@ -294,6 +294,59 @@ describe('Repository webhook', () => {
     expect((await issueState(asOwner, issue.id)).columnId).toBe(done.id);
   });
 
+  it('completes a reference-only issue after every linked PR merges', async () => {
+    const { asOwner, webhookId, secret, columns } = await setupProject();
+    const started = columns.find((c) => c.stateType === 'started')!;
+    const done = columns.find((c) => c.stateType === 'completed')!;
+    const issue = (await createIssue(asOwner, started.id)).data!;
+    const body = `Refs MKT-${issue.sequenceNumber}`;
+    for (const number of [42, 43]) {
+      await deliver(
+        webhookId,
+        secret,
+        prPayload({ action: 'opened', merged: false, number, body }),
+      );
+    }
+    await deliver(webhookId, secret, prPayload({ number: 42, body }));
+    expect((await issueState(asOwner, issue.id)).columnId).toBe(started.id);
+    await deliver(webhookId, secret, prPayload({ number: 43, body }));
+    expect((await issueState(asOwner, issue.id)).columnId).toBe(done.id);
+  });
+
+  it('completes a previously linked issue when the merge payload no longer names it', async () => {
+    const { asOwner, webhookId, secret, columns } = await setupProject();
+    const issue = (await createIssue(asOwner, columns[0].id)).data!;
+    const done = columns.find((c) => c.stateType === 'completed')!;
+    await deliver(
+      webhookId,
+      secret,
+      prPayload({ action: 'opened', merged: false, body: `Refs MKT-${issue.sequenceNumber}` }),
+    );
+    await deliver(webhookId, secret, prPayload({ body: '' }));
+    expect((await issueState(asOwner, issue.id)).columnId).toBe(done.id);
+  });
+
+  it('keeps a reference-only issue open when a linked PR was closed without merging', async () => {
+    const { asOwner, webhookId, secret, columns } = await setupProject();
+    const issue = (await createIssue(asOwner, columns[0].id)).data!;
+    const body = `Refs MKT-${issue.sequenceNumber}`;
+    await deliver(webhookId, secret, prPayload({ number: 43, merged: false, body }));
+    await deliver(webhookId, secret, prPayload({ number: 42, body }));
+    expect((await issueState(asOwner, issue.id)).columnId).toBe(columns[0].id);
+  });
+
+  it('completes an issue linked only through the PR branch', async () => {
+    const { asOwner, webhookId, secret, columns } = await setupProject();
+    const issue = (await createIssue(asOwner, columns[0].id)).data!;
+    const done = columns.find((c) => c.stateType === 'completed')!;
+    await deliver(
+      webhookId,
+      secret,
+      prPayload({ headRef: `feat/MKT-${issue.sequenceNumber}-work` }),
+    );
+    expect((await issueState(asOwner, issue.id)).columnId).toBe(done.id);
+  });
+
   it('rejects a delivery with a bad signature', async () => {
     const { asOwner, webhookId, secret, columns } = await setupProject();
     const issue = (await createIssue(asOwner, columns[0].id)).data!;
