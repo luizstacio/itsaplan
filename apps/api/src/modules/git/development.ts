@@ -1,5 +1,5 @@
 import { db, issue, issueDevelopmentCheck, issueDevelopmentLink } from '@repo/db';
-import { and, desc, eq, inArray, isNull, or, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, ne, or, sql } from 'drizzle-orm';
 import { HttpError, iso } from '#shared/lib';
 import {
   createManagedPullRequest,
@@ -195,7 +195,27 @@ export async function createAndLinkPullRequest(
   return storePullRequestLink(projectId, issueId, result.provider, result.details);
 }
 
-export async function hasOpenDevelopmentLinks(issueId: number): Promise<boolean> {
+export async function linkedPullRequestIssueNumbers(
+  projectId: number,
+  provider: GitProviderKey,
+  event: PullRequestEvent,
+): Promise<number[]> {
+  const rows = await db
+    .select({ sequenceNumber: issue.sequenceNumber })
+    .from(issueDevelopmentLink)
+    .innerJoin(issue, eq(issue.id, issueDevelopmentLink.issueId))
+    .where(
+      and(
+        eq(issue.projectId, projectId),
+        eq(issueDevelopmentLink.provider, provider),
+        eq(issueDevelopmentLink.repository, event.repo),
+        eq(issueDevelopmentLink.externalKey, `pull_request:${event.number}`),
+      ),
+    );
+  return rows.map((row) => row.sequenceNumber);
+}
+
+export async function hasUnmergedPullRequests(issueId: number): Promise<boolean> {
   const [link] = await db
     .select({ id: issueDevelopmentLink.id })
     .from(issueDevelopmentLink)
@@ -203,7 +223,7 @@ export async function hasOpenDevelopmentLinks(issueId: number): Promise<boolean>
       and(
         eq(issueDevelopmentLink.issueId, issueId),
         eq(issueDevelopmentLink.kind, 'pull_request'),
-        eq(issueDevelopmentLink.state, 'open'),
+        ne(issueDevelopmentLink.state, 'merged'),
       ),
     )
     .limit(1);

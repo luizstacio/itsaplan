@@ -7,7 +7,8 @@ import {
   type ParsedMagicWords,
 } from './magic-words';
 import {
-  hasOpenDevelopmentLinks,
+  hasUnmergedPullRequests,
+  linkedPullRequestIssueNumbers,
   promoteBranchLinksToPullRequest,
   removeBranchLinks,
   removePullRequestLinks,
@@ -24,7 +25,7 @@ import { issueWebPath } from '#modules/teams/ref';
 
 // Stores normalized repository events and applies pull request automation:
 // - a pull request merged into the repository's default branch moves the issues
-//   named by a closing magic word to the configured (or first completed) column;
+//   linked to it to the configured (or first completed) column once all PRs merge;
 // - a pull request opened, or a draft marked ready, links every issue it names,
 //   and moves the ones still in a backlog or unstarted column to the configured
 //   column, when one is set.
@@ -150,6 +151,13 @@ export async function handleGitEvent(
       // not make a verified webhook fail or repeat its issue automation.
     }
   }
+  if (event.action === 'merged') {
+    const linkedNumbers = await linkedPullRequestIssueNumbers(project.id, providerKey, event);
+    refs.references = uniqueRefs([
+      ...refs.references,
+      ...linkedNumbers.map((sequenceNumber) => ({ key: projectKey, sequenceNumber })),
+    ]);
+  }
   return handlePullRequestEvent(project, settings, providerLabel, event, refs);
 }
 
@@ -176,14 +184,12 @@ export async function handlePullRequestEvent(
     if (event.defaultBranch != null && event.targetBranch !== event.defaultBranch) return 'ignored';
     const targetId = await mergeTargetColumnId(project.id, settings);
     if (targetId == null) return 'ignored';
-    for (const ref of inProject(parsed.closes)) {
+    for (const ref of inProject(uniqueRefs([...parsed.closes, ...parsed.references]))) {
       const issue = await getIssueBySequence(project.id, ref.sequenceNumber);
       // An issue moved to another project keeps its pull requests, but the columns
       // configured here are not its columns.
       if (!issue || issue.archivedAt || issue.projectId !== project.id) continue;
-      // A task may need several pull requests. Wait for all linked work to leave
-      // the open state before applying the merge automation, as Linear does.
-      if (await hasOpenDevelopmentLinks(issue.id)) continue;
+      if (await hasUnmergedPullRequests(issue.id)) continue;
       const stateType = (await columnStateTypes([issue.columnId])).get(issue.columnId);
       if (stateType && CLOSED_STATE_TYPES.includes(stateType)) continue;
       await recordActivity(issue.id, [prEntry('merged')], actor);

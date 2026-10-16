@@ -1,7 +1,7 @@
 // The magic-word grammar for linking pull requests to issues, copying Linear's:
 // a magic word followed by one or more issue identifiers ("Fixes MKT-42",
 // "Closes MKT-1, MKT-2 and MKT-3"). Closing words move the issue to the closed
-// state when the PR merges; non-closing words only link. "skip"/"ignore" before
+// state alongside references once all linked PRs merge. "skip"/"ignore" before
 // an identifier suppresses both for that identifier anywhere in the text.
 
 const CLOSING_WORDS = [
@@ -49,7 +49,7 @@ export interface IssueRef {
 export interface ParsedMagicWords {
   // Identifiers named by a closing word — closed when the PR merges.
   closes: IssueRef[];
-  // Identifiers named by a non-closing word — linked but never closed.
+  // Identifiers named by a reference word.
   references: IssueRef[];
   // Identifiers explicitly excluded with skip/ignore. The webhook handler uses
   // these to remove a link that an earlier delivery already created.
